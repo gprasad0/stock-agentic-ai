@@ -15,7 +15,31 @@ class OutreachState(TypedDict):
 
 def scrape_node(state: OutreachState):
     # Apollo logic comes next
-    return {"leads": []}
+    headers = {
+        "x-api-key": os.getenv("APOLLO_API_KEY"),
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "q_organization_industry_tag_ids": [state["industry"]],
+        "q_organization_locations": [state["location"]],
+        "per_page": 10,
+    }
+    response = requests.post(
+        "https://api.apollo.io/v1/mixed_people/search", json=payload, headers=headers
+    )
+    leads = response.json().get("people", [])
+    cleaned = [
+        {
+            "name": lead.get("name"),
+            "email": lead.get("email"),
+            "company": lead.get("organization", {}).get("name"),
+            "website": lead.get("organization", {}).get("website_url"),
+            "title": lead.get("title"),
+        }
+        for lead in leads
+        if lead.get("email")
+    ]
+    return {"leads": cleaned}
 
 
 def enrich_node(state: OutreachState):
